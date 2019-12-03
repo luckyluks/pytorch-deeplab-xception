@@ -20,9 +20,9 @@ class CostumSegmentation(data.Dataset):
         self.images_base = os.path.join(self.root, 'capture', self.split)
         self.annotations_base = os.path.join(self.root, 'groundtruth', self.split)
 
-        self.files[split] = self.recursive_glob(rootdir=self.images_base, suffix='.png')
+        self.files[split] = self.recursive_glob(rootdir=self.images_base, suffix='.jpg')
 
-        self.void_classes = [-1]
+        self.void_classes = []
         self.valid_classes = [0, 255]
         self.class_names = ['background', 'foreground']
 
@@ -40,14 +40,17 @@ class CostumSegmentation(data.Dataset):
     def __getitem__(self, index):
 
         img_path = self.files[self.split][index].rstrip()
-        lbl_path = os.path.join(self.annotations_base,
-                                img_path.split(os.sep)[-2],
-                                os.path.basename(img_path)[:-15] + 'gtFine_labelIds.png')
-
+        lbl_path = os.path.join(self.annotations_base, os.path.basename(img_path))
+    
         _img = Image.open(img_path).convert('RGB')
         _tmp = np.array(Image.open(lbl_path), dtype=np.uint8)
-        _tmp = self.encode_segmap(_tmp)
-        _target = Image.fromarray(_tmp)
+        _tmp = np.divide(_tmp, 255)
+        _tmp = np.round(_tmp)
+        _tmp = np.multiply(_tmp, 255)
+        _tmp = np.asarray(_tmp, dtype=np.uint8)
+        print("uniques end: ",np.unique(_tmp))
+        _target = _tmp #Image.fromarray(_tmp)
+
 
         sample = {'image': _img, 'label': _target}
 
