@@ -107,6 +107,7 @@ class Trainer(object):
             # print(target.shape)
             # print(output[0])
             # print(target[0])
+            target = target.squeeze(1) ####
             loss = self.criterion(output, target)
             loss.backward()
             self.optimizer.step()

@@ -50,8 +50,11 @@ class CityscapesSegmentation(data.Dataset):
 
         _img = Image.open(img_path).convert('RGB')
         _tmp = np.array(Image.open(lbl_path), dtype=np.uint8)
+        print("uniques start: ",np.unique(_tmp))
         _tmp = self.encode_segmap(_tmp)
         _target = Image.fromarray(_tmp)
+        _target.save("targetsc" + ".png", "PNG")
+        print("uniques end: ",np.unique(np.array(_target, dtype=np.uint8)))
 
         sample = {'image': _img, 'label': _target}
 

@@ -23,11 +23,11 @@ class CostumSegmentation(data.Dataset):
 
         self.files[split] = self.recursive_glob(rootdir=self.images_base, suffix='.jpg')
 
-        self.void_classes = range(0,254)
+        self.void_classes = [item for item in range(0,255)] 
         self.valid_classes = [0, 255]
         self.class_names = ['unlabelled', 'foreground']
 
-        self.ignore_index = 0
+        self.ignore_index = 128
         self.class_map = dict(zip(self.valid_classes, range(self.NUM_CLASSES)))#
         print(self.class_map)
 
@@ -54,13 +54,24 @@ class CostumSegmentation(data.Dataset):
         # _target = Image.fromarray(_tmp, "L")
         # print(_target.mode)
         _img = Image.open(img_path).convert('RGB')
-        _tmp = Image.open(lbl_path).convert('L')
-        # _tmp.save("test" + ".png", "PNG")
+        _tmp = Image.open(lbl_path)
+        _tmp.save("grayscale" + ".png", "PNG")
         _tmp = np.array(_tmp, dtype=np.uint8)
-        _tmp = self.encode_segmap(_tmp)
+         ##print("uniques start: ",np.unique(_tmp))
+        # _tmp = self.encode_segmap(_tmp)
+        # print(_tmp)
         _tmp = _tmp /255
-        _target = Image.fromarray(_tmp).convert('L')
-        # _target.save("target" + ".png", "PNG")
+        _tmp = np.array(np.round(_tmp), dtype=np.uint8)
+        # print(_tmp)
+        _tmp = _tmp *255
+         ##print("uniques middle: ",np.unique(_tmp))
+        # print(_tmp)
+         ## _target_dump = _tmp #np.multiply(_tmp,255)
+         ## _target_dump = Image.fromarray(_target_dump).convert("L")
+         # #_target_dump.save("target" + ".png", "PNG")
+        _target = Image.fromarray(_tmp).convert("L")
+        # print(np.array(_target, dtype=np.uint8))
+         ##print("uniques end: ",np.unique(np.array(_target, dtype=np.uint8)))
         
         # print(_target.mode)
 
