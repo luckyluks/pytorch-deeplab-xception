@@ -6,11 +6,11 @@ class Path(object):
         elif dataset == 'sbd':
             return '/path/to/datasets/benchmark_RELEASE/'  # folder that contains dataset/.
         elif dataset == 'cityscapes':
-            return '/media/zed/Data/cityscapes/'     # foler that contains leftImg8bit/
+            return '/home/ubuntu/cityscapes/'     # foler that contains leftImg8bit/
         elif dataset == 'coco':
             return '/media/zed/Data/g/'
         elif dataset == 'costum':
-            return '/media/zed/Data/gtdata/'
+            return '/home/ubuntu/recorded_data/'
         else:
             print('Dataset {} not available.'.format(dataset))
             raise NotImplementedError

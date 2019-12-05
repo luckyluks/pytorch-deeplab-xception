@@ -6,6 +6,7 @@ from torch.utils import data
 from mypath import Path
 from torchvision import transforms
 from dataloaders import custom_transforms as tr
+import cv2
 
 class CostumSegmentation(data.Dataset):
     NUM_CLASSES = 2
@@ -22,12 +23,13 @@ class CostumSegmentation(data.Dataset):
 
         self.files[split] = self.recursive_glob(rootdir=self.images_base, suffix='.jpg')
 
-        self.void_classes = []
+        self.void_classes = range(0,254)
         self.valid_classes = [0, 255]
-        self.class_names = ['background', 'foreground']
+        self.class_names = ['unlabelled', 'foreground']
 
-        self.ignore_index = 128
-        self.class_map = dict(zip(self.valid_classes, range(self.NUM_CLASSES)))
+        self.ignore_index = 0
+        self.class_map = dict(zip(self.valid_classes, range(self.NUM_CLASSES)))#
+        print(self.class_map)
 
         if not self.files[split]:
             raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
@@ -42,14 +44,25 @@ class CostumSegmentation(data.Dataset):
         img_path = self.files[self.split][index].rstrip()
         lbl_path = os.path.join(self.annotations_base, os.path.basename(img_path))
     
+        # _img = Image.open(img_path).convert('RGB')
+        # _tmp = np.array(Image.open(lbl_path), dtype=np.uint8)
+        # _tmp = np.divide(_tmp, 255)
+        # _tmp = np.round(_tmp)
+        # _tmp = np.multiply(_tmp, 255)
+        # _tmp = np.asarray(_tmp, dtype=np.uint8)
+        # print("uniques end: ",np.unique(_tmp))
+        # _target = Image.fromarray(_tmp, "L")
+        # print(_target.mode)
         _img = Image.open(img_path).convert('RGB')
-        _tmp = np.array(Image.open(lbl_path), dtype=np.uint8)
-        _tmp = np.divide(_tmp, 255)
-        _tmp = np.round(_tmp)
-        _tmp = np.multiply(_tmp, 255)
-        _tmp = np.asarray(_tmp, dtype=np.uint8)
-        print("uniques end: ",np.unique(_tmp))
-        _target = _tmp #Image.fromarray(_tmp)
+        _tmp = Image.open(lbl_path).convert('L')
+        # _tmp.save("test" + ".png", "PNG")
+        _tmp = np.array(_tmp, dtype=np.uint8)
+        _tmp = self.encode_segmap(_tmp)
+        _tmp = _tmp /255
+        _target = Image.fromarray(_tmp).convert('L')
+        # _target.save("target" + ".png", "PNG")
+        
+        # print(_target.mode)
 
 
         sample = {'image': _img, 'label': _target}

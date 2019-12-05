@@ -17,8 +17,8 @@ class CityscapesSegmentation(data.Dataset):
         self.args = args
         self.files = {}
 
-        self.images_base = os.path.join(self.root, 'leftImg8bit', self.split)
-        self.annotations_base = os.path.join(self.root, 'gtFine_trainvaltest', 'gtFine', self.split)
+        self.images_base = os.path.join(self.root, 'capture', self.split)
+        self.annotations_base = os.path.join(self.root, 'groundtruth', self.split)
 
         self.files[split] = self.recursive_glob(rootdir=self.images_base, suffix='.png')
 
@@ -31,6 +31,7 @@ class CityscapesSegmentation(data.Dataset):
 
         self.ignore_index = 255
         self.class_map = dict(zip(self.valid_classes, range(self.NUM_CLASSES)))
+        print(self.class_map)
 
         if not self.files[split]:
             raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
