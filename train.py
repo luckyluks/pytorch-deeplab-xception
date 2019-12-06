@@ -2,6 +2,7 @@ import argparse
 import os
 import numpy as np
 from tqdm import tqdm
+import PIL
 
 from mypath import Path
 from dataloaders import make_data_loader
@@ -13,6 +14,7 @@ from utils.lr_scheduler import LR_Scheduler
 from utils.saver import Saver
 from utils.summaries import TensorboardSummary
 from utils.metrics import Evaluator
+import torchvision
 
 class Trainer(object):
     def __init__(self, args):
@@ -97,12 +99,27 @@ class Trainer(object):
         num_img_tr = len(self.train_loader)
         for i, sample in enumerate(tbar):
             image, target = sample['image'], sample['label']
+
+
             if self.args.cuda:
                 image, target = image.cuda(), target.cuda()
             self.scheduler(self.optimizer, i, epoch, self.best_pred)
             self.optimizer.zero_grad()
             # print(image.shape)
             output = self.model(image)
+
+            if i % 50 == 0:
+                
+                image_num = image[0].permute(2,1,0)
+                image_num = torchvision.transforms.ToPILImage()(image[0].cpu())
+                # print(target.shape)
+                target_num = PIL.Image.fromarray( target[0].cpu().numpy()).convert('RGB')
+                output_num = torchvision.transforms.ToPILImage()(output[0].detach().cpu())
+                # output_num = PIL.Image.fromarray( output[0].detach().cpu().numpy()).convert('RGB')
+                # print(output.shape)
+                image_num.save('train_image.png' ,"PNG")
+                target_num.save('train_target.png' ,"PNG")
+                output_num.save('train_output.png' ,"PNG")
             # print(output.shape)
             # print(target.shape)
             # print(output[0])
@@ -140,6 +157,7 @@ class Trainer(object):
         self.evaluator.reset()
         tbar = tqdm(self.val_loader, desc='\r')
         test_loss = 0.0
+
         for i, sample in enumerate(tbar):
             image, target = sample['image'], sample['label']
             if self.args.cuda:
@@ -180,6 +198,68 @@ class Trainer(object):
                 'optimizer': self.optimizer.state_dict(),
                 'best_pred': self.best_pred,
             }, is_best)
+        
+    def testing(self, epoch):
+        self.model.eval()
+        # self.evaluator.reset()
+        tbar = tqdm(self.val_loader, desc='\r')
+        test_loss = 0.0
+        rows = []
+        
+        for i, sample in enumerate(tbar):
+            row = []
+            image, target = sample['image'], sample['label']
+            row.append(image)
+            row.append(target)
+            if self.args.cuda:
+                image, target = image.cuda(), target.cuda()
+            with torch.no_grad():
+                output = self.model(image)
+            row.append(output)
+            loss = self.criterion(output, target)
+            test_loss += loss.item()
+            tbar.set_description('Test loss: %.3f' % (test_loss / (i + 1)))
+            pred = output.data.cpu().numpy()
+            target = target.cpu().numpy()
+            pred = np.argmax(pred, axis=1)
+            # Add batch sample into evaluator
+            self.evaluator.add_batch(target, pred)
+            rows.append(row)
+        
+        # save that beautiful picture
+        rand_int = 12
+        min_shape = sorted( [(np.sum(i.size), i.size ) for i in rows[rand_int]])[0][1]
+        imgs_comb = np.hstack( (np.asarray( i.resize(min_shape) ) for i in rows[rand_int] ) )
+        imgs_comb = PIL.Image.fromarray( imgs_comb)
+        imgs_comb.save( 'testing_rand.png' ,"PNG")  
+
+
+        # Fast test during the training
+        Acc = self.evaluator.Pixel_Accuracy()
+        Acc_class = self.evaluator.Pixel_Accuracy_Class()
+        mIoU = self.evaluator.Mean_Intersection_over_Union()
+        FWIoU = self.evaluator.Frequency_Weighted_Intersection_over_Union()
+        self.writer.add_scalar('val/total_loss_epoch', test_loss, epoch)
+        self.writer.add_scalar('val/mIoU', mIoU, epoch)
+        self.writer.add_scalar('val/Acc', Acc, epoch)
+        self.writer.add_scalar('val/Acc_class', Acc_class, epoch)
+        self.writer.add_scalar('val/fwIoU', FWIoU, epoch)
+        print('Validation:')
+        print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + image.data.shape[0]))
+        print("Acc:{}, Acc_class:{}, mIoU:{}, fwIoU: {}".format(Acc, Acc_class, mIoU, FWIoU))
+        print('Loss: %.3f' % test_loss)
+
+        new_pred = mIoU
+        if new_pred > self.best_pred:
+            is_best = True
+            self.best_pred = new_pred
+            self.saver.save_checkpoint({
+                'epoch': epoch + 1,
+                'state_dict': self.model.module.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+                'best_pred': self.best_pred,
+            }, is_best)
+
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch DeeplabV3Plus Training")
@@ -195,9 +275,9 @@ def main():
                         help='whether to use SBD dataset (default: True)')
     parser.add_argument('--workers', type=int, default=4,
                         metavar='N', help='dataloader threads')
-    parser.add_argument('--base-size', type=int, default=513,
+    parser.add_argument('--base-size', type=int, default=256,
                         help='base image size')
-    parser.add_argument('--crop-size', type=int, default=513,
+    parser.add_argument('--crop-size', type=int, default=256,
                         help='crop image size')
     parser.add_argument('--sync-bn', type=bool, default=None,
                         help='whether to use sync bn (default: auto)')
